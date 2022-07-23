@@ -1,6 +1,15 @@
-# Yolov5 + StrongSORT with OSNet
+# 使用Yolov5 + StrongSORT with OSNet来进行违停车辆检测  
 
-
+## 使用  
+对需要检测的视频进行图片截取，使用get_pts_co.py获得违停区域像素坐标，输入到parking_violation.py（第128行）  
+违停时间阈值见274行（默认为5s)  
+运行parking_violation.py：  
+`python parking_violation.py --source dataset/CSU_road/CSU_road.mp4 \
+			     --show-vid  \
+			     --classes 1 3 \
+			     --save-vid `
+ Yolo v5[权重](https://github.com/ultralytics/yolov5/releases)  
+ 违停日志与车辆截图见`runs/track/exp`
 
 
 
