@@ -120,19 +120,20 @@ def run(
     style = xlwt.easyxf('font: bold 1')
     row_num = 0
 
+    FPS =  getattr(dataset, 'fps') # 获取检测视频帧率
     parking_co = [] # 违停区域坐标系
     frame_dic= {} # 与违停区域相交的目标日志
     cache_dic = {} # 违停区域内静止目标日志
     viol_dic = {} # 违停日志
-    blanked = np.zeros((getattr(dataset, 'frame_width'), getattr(dataset, 'frame_height'), 3), dtype=np.uint8)  # 新建一个与视频尺寸相同的空白区域
+    blanked = np.zeros((getattr(dataset, 'frame_height'), getattr(dataset, 'frame_width'), 3), dtype=np.uint8)  # 新建一个与视频尺寸相同的空白区域
     pts = np.array(([260, 557], [87, 667], [396, 721], [786, 610])) # 感兴趣区域四个顶点坐标
 
-    cv2.fillPoly(blanked, np.int32([pts]), (0, 0, 255)) # 对空白区域进行内部填充 BGR 
+    mask = cv2.fillPoly(blanked, np.int32([pts]), (0, 0, 255)) # 对空白区域进行内部填充 BGR 
    
     # 取出填充像素坐标
     
-    x_cord = np.where(blanked == 255)[1] 
-    y_cord = np.where(blanked == 255)[0]
+    x_cord = np.where(mask == 255)[1] 
+    y_cord = np.where(mask == 255)[0]
 
     for q in range(0, len(x_cord)):
         parking_co.append((x_cord[q], y_cord[q])) # 加入到停车区域坐标系中
@@ -210,7 +211,7 @@ def run(
             s += '%gx%g ' % im.shape[2:]  # print string
             imc = im0.copy() if save_crop else im0  # for save_crop
             image = Image.fromarray(imc)
-            annotator = Annotator(im0, line_width=2, pil=not ascii)
+            annotator = Annotator(im0, line_width=2, pil=not ascii, mask=mask)
             if cfg.STRONGSORT.ECC:  # camera motion compensation
                 strongsort_list[i].tracker.camera_update(prev_frames[i], curr_frames[i])
 
@@ -235,57 +236,59 @@ def run(
 
                 # 画出框线并且判断是否有车辆进入违停区域
                 if len(outputs[i]) > 0: 
-                    if len(frame_dic)>10^7: # 防止溢出
-                        frame_dic={}
                     for j, (output, conf) in enumerate(zip(outputs[i], confs)): # 处理每帧图像中的每个检测目标
     
                         bboxes = output[0:4] # 左上角点和右下角点（xyxy)
                         id = output[4] # 追踪ID
                         cls = output[5] # 类别 coco数据集（0：‘persion', 1'bicycle', 2:'car'）
 
-                        frame_idx_s, cls_s, id_s = str(frame_idx), names[int(cls)], str(int(id))
-                        # 获取左右框线：
-                        #bbox_left_line_co = list(zip(*line(*(int(bboxes[0]),int(bboxes[1])), *(int(bboxes[0]),int(bboxes[3]))))) # 左框线
-                        #bbox_right_line_co = list(zip(*line(*(int(bboxes[2]),int(bboxes[1])), *(int(bboxes[2]),int(bboxes[3]))))) # 右框线
-                        # 获取下框线：
-                        bbox_bottom_line_co = list(zip(*line(*(int(bboxes[0])+25,int(bboxes[3])), *(int(bboxes[2])-25,int(bboxes[3]))))) 
-                        violate_start = time.time()
-                        if len(intersection(bbox_bottom_line_co, parking_co))>0:
-                        #if intersection(bbox_bottom_line_co, parking_co):
+                        if frame_idx %  FPS == 0: # 每秒检测一次
+                            if len(frame_dic)>10^7: # 防止溢出
+                                frame_dic={}
+                            for out in outputs[i]:
+                                bbox = out[0:4]
+                                frame_idx_s, cls_s, id_s = str(frame_idx), names[int(out[5])], str(int(out[4]))
+                                # 获取左右框线：
+                                #bbox_left_line_co = list(zip(*line(*(int(bboxes[0]),int(bboxes[1])), *(int(bboxes[0]),int(bboxes[3]))))) # 左框线
+                                #bbox_right_line_co = list(zip(*line(*(int(bboxes[2]),int(bboxes[1])), *(int(bboxes[2]),int(bboxes[3]))))) # 右框线
+                                # 获取下框线：
+                                bbox_bottom_line_co = list(zip(*line(*(int(bbox[0])+25,int(bbox[3])), *(int(bbox[2])-25,int(bbox[3]))))) 
+                                #violate_start = time.time()
+                                if len(intersection(bbox_bottom_line_co, parking_co))>0:
+                                #if intersection(bbox_bottom_line_co, parking_co):
+                                    cur_frame_key = frame_idx_s + cls_s + id_s
+                                    pre_frame_key = str(int(frame_idx-FPS)) +cls_s + id_s 
+                                    frame_dic[cur_frame_key] = bbox
 
-                            cur_frame_key = frame_idx_s + cls_s + id_s
-                            pre_frame_key = str(int(frame_idx-1)) +cls_s + id_s 
-                            frame_dic[cur_frame_key] = bboxes
+                                    previous_bbox_co = frame_dic.get(pre_frame_key, []) # 获取当前目标前一秒检测框,若无返回空列表
+                                    if len(previous_bbox_co): 
+                                        if immobile(bbox, previous_bbox_co) == True: # 若目标静止
+                                            if not cache_dic.get(cls_s+id_s, 0): # 如果静止目标没在cache_dic中
 
-                            previous_bbox_co = frame_dic.get(pre_frame_key, []) # 获取当前目标前一帧检测框,若无返回空列表
-                            if len(previous_bbox_co): 
-                                if immobile(bboxes, previous_bbox_co) == True: # 若目标静止
-                                    if not cache_dic.get(cls_s+id_s, 0): # 如果静止目标没在cache_dic中
+                                                t_start = datetime.now() # 设定计时器
+                                                cache_dic[cls_s+id_s] = str(t_start)
+                                            # 若目标在cache_dic但不在viol_dic中
+                                            if cache_dic.get(cls_s+id_s, 0) and not viol_dic.get(cls_s+id_s, 0):
 
-                                        t_start = datetime.now() # 设定计时器
-                                        cache_dic[cls_s+id_s] = str(t_start)
-                                    # 若目标在cache_dic但不在viol_dic中
-                                    if cache_dic.get(cls_s+id_s, 0) and not viol_dic.get(cls_s+id_s, 0):
+                                                t_start_cm = cache_dic[cls_s+id_s][0:19] # 舍掉毫秒
+                                                t_spending = (datetime.now() - datetime.strptime(t_start_cm,
+                                                                                                '%Y-%m-%d %H:%M:%S')).total_seconds()
 
-                                        t_start_cm = cache_dic[cls_s+id_s][0:19] # 舍掉毫秒
-                                        t_spending = (datetime.now() - datetime.strptime(t_start_cm,
-                                                                                        '%Y-%m-%d %H:%M:%S')).total_seconds()
+                                                print(f'{cls_s}{id_s} 于{t_start_cm} 停留 {t_spending:.2f} 秒')
+                                                if t_spending > 5: # 若停留时间大于...秒，违停车辆写入EXCEL以及viol_dic,并且截图
+                                                    sheet.write(row_num, 0, str(t_start_cm), style)
+                                                    # sheet.write(row_num, 1, str(round(t_spending, 2)), style)
+                                                    sheet.write(row_num, 1, cls_s + id_s, style)
+                                                    row_num += 1
+                                                    workbook.save(Path(save_dir / 'details.xls'))
 
-                                        print(f'{cls_s}{id_s} 于{t_start_cm} 停留 {t_spending:.2f} 秒')
-                                        if t_spending > 5: # 若停留时间大于...秒，违停车辆写入EXCEL以及viol_dic,并且截图
-                                            sheet.write(row_num, 0, str(t_start_cm), style)
-                                            # sheet.write(row_num, 1, str(round(t_spending, 2)), style)
-                                            sheet.write(row_num, 1, cls_s + id_s, style)
-                                            row_num += 1
-                                            workbook.save(Path(save_dir / 'details.xls'))
-
-                                            viol_dic[cls_s+id_s] = t_spending
-                                            # print(t_start_cm, t_spending, datetime.now())
-                                            cropped = image.crop((int(bboxes[0]), int(bboxes[1]), int(bboxes[2]), int(bboxes[3]))) 
-                                            cropped.save(Path(save_dir / f'{cls_s}{id_s}.jpg'))
-                        violate_end = time.time()
-                        violate_time = violate_end - violate_start
-                        print(f'违停检测用时: {violate_time}')
+                                                    viol_dic[cls_s+id_s] = t_spending
+                                                    # print(t_start_cm, t_spending, datetime.now())
+                                                    cropped = image.crop((int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3]))) 
+                                                    cropped.save(Path(save_dir / f'{cls_s}{id_s}.jpg'))
+                            #violate_end = time.time()
+                            #violate_time = violate_end - violate_start
+                            #print(f'违停检测用时: {violate_time}')
                         if save_txt:
                             # to MOT format
                             bbox_left = output[0]
@@ -303,7 +306,8 @@ def run(
                             label = None if hide_labels else (f'{id} {names[c]}' if hide_conf else \
                                 (f'{id} {conf:.2f}' if hide_class else f'{id} {names[c]} {conf:.2f}'))
                             annotator.box_label(bboxes, label, color=colors(c, True))
-                            cv2.fillPoly(imc, np.int32([pts]), 255)
+                            
+                            #cv2.fillPoly(imc, np.int32([pts]), (0,0,255)) # 添加上违停区域
                             if save_crop:
                                 txt_file_name = txt_file_name if (isinstance(path, list) and len(path) > 1) else ''
                                 save_one_box(bboxes, imc, file=save_dir / 'crops' / txt_file_name / names[c] / f'{id}' / f'{p.stem}.jpg', BGR=True)
@@ -359,7 +363,7 @@ def parse_opt():
     parser.add_argument('--iou-thres', type=float, default=0.5, help='NMS IoU threshold')
     parser.add_argument('--max-det', type=int, default=1000, help='maximum detections per image')
     parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
-    parser.add_argument('--show-vid', action='store_true', help='display tracking video results')
+    parser.add_argument('--show-vid', default=True, action='store_true', help='display tracking video results')
     parser.add_argument('--save-txt', action='store_true', help='save results to *.txt')
     parser.add_argument('--save-conf', action='store_true', help='save confidences in --save-txt labels')
     parser.add_argument('--save-crop', action='store_true', help='save cropped prediction boxes')
