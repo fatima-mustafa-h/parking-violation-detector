@@ -126,7 +126,7 @@ def run(
     cache_dic = {} # 违停区域内静止目标日志
     viol_dic = {} # 违停日志
     blanked = np.zeros((getattr(dataset, 'frame_height'), getattr(dataset, 'frame_width'), 3), dtype=np.uint8)  # 新建一个与视频尺寸相同的空白区域
-    pts = np.array(([260, 557], [87, 667], [396, 721], [786, 610])) # 感兴趣区域四个顶点坐标
+    pts = np.array(([687, 648], [610, 738], [322, 666], [432, 638])) # 感兴趣区域四个顶点坐标
 
     mask = cv2.fillPoly(blanked, np.int32([pts]), (0, 0, 255)) # 对空白区域进行内部填充 BGR 
    
@@ -286,6 +286,7 @@ def run(
                                                     # print(t_start_cm, t_spending, datetime.now())
                                                     cropped = image.crop((int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3]))) 
                                                     cropped.save(Path(save_dir / f'{cls_s}{id_s}.jpg'))
+
                             #violate_end = time.time()
                             #violate_time = violate_end - violate_start
                             #print(f'违停检测用时: {violate_time}')
@@ -306,7 +307,11 @@ def run(
                             label = None if hide_labels else (f'{id} {names[c]}' if hide_conf else \
                                 (f'{id} {conf:.2f}' if hide_class else f'{id} {names[c]} {conf:.2f}'))
                             annotator.box_label(bboxes, label, color=colors(c, True))
-                            
+                            if len(viol_dic):
+                                text = ''
+                                for key, time in viol_dic.items():
+                                    text += key + 'illegal parking for more than' + f'{time:.2f}' + 's!' 
+                                annotator.add_alarm(xy=(15,19), label=text)
                             #cv2.fillPoly(imc, np.int32([pts]), (0,0,255)) # 添加上违停区域
                             if save_crop:
                                 txt_file_name = txt_file_name if (isinstance(path, list) and len(path) > 1) else ''
@@ -357,7 +362,7 @@ def parse_opt():
     parser.add_argument('--yolo-weights', nargs='+', type=str, default=WEIGHTS / 'yolov5m.pt', help='model.pt path(s)')
     parser.add_argument('--strong-sort-weights', type=str, default=WEIGHTS / 'osnet_x0_25_msmt17.pth')
     parser.add_argument('--config-strongsort', type=str, default='strong_sort/configs/strong_sort.yaml')
-    parser.add_argument('--source', type=str, default='dataset/CSU_road/CSU_road.mp4', help='file/dir/URL/glob, 0 for webcam')  
+    parser.add_argument('--source', type=str, default='dataset/me/video.mp4', help='file/dir/URL/glob, 0 for webcam')  
     parser.add_argument('--imgsz', '--img', '--img-size', nargs='+', type=int, default=[640], help='inference size h,w')
     parser.add_argument('--conf-thres', type=float, default=0.5, help='confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.5, help='NMS IoU threshold')
@@ -405,7 +410,7 @@ def intersection(Line, parking_co):
 def immobile(bbox, previous_bbox):
     total = abs(bbox[0] - previous_bbox[0]) + abs(bbox[1] - previous_bbox[1]) + \
         abs(bbox[2] - previous_bbox[2]) + abs(bbox[3] - previous_bbox[3])
-    if total <= 4: # Yolo边框存在波动
+    if total <= 50: # Yolo边框存在波动
         return True
     else:
         return False
