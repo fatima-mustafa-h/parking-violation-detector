@@ -43,9 +43,7 @@ Open http://127.0.0.1:5000 in your browser.
 ├── app/                  # Flask app backend
 ├── templates/            # HTML files
 ├── static/               # CSS, JS, images
-├── yolo/                 # Detection model logic
 ├── utils/                # Zone marking, time tracking
-├── test_videos/          # Sample inputs
 ├── requirements.txt
 ├── app.py                # Entry point
 └── README.md
