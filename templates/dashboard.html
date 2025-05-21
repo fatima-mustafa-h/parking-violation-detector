@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <nav>
+    <a href="{{ url_for('dashboard') }}">Dashboard</a> |
+    <a href="{{ url_for('violations') }}">Violations</a> |
+    <a href="{{ url_for('analytics') }}">Analytics</a> |
+    <a href="{{ url_for('live_feed') }}">Live Feed</a> |
+    <a href="{{ url_for('auth.logout') }}">Logout</a>
+  </nav>
+  <h1>Welcome to Parking Violation Detection</h1>
+
+  <section>
+    <h2>Set No-Parking Zones</h2>
+    <canvas id="zoneCanvas" width="800" height="450" style="border:1px solid #ccc;"></canvas>
+    <button id="saveZones">Save Zones</button>
+  </section>
+
+  <script src="{{ url_for('static', filename='js/zone_marking.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,49 @@
+<!-- templates/zone_editor.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Edit Zones</title>
+</head>
+<body>
+  <h2>Edit Zones (JSON format)</h2>
+  <textarea id="zonesInput" style="width:100%; height:300px;"></textarea><br />
+  <button onclick="saveZones()">Save Zones</button>
+
+  <script>
+    async function loadZones() {
+      const res = await fetch('/zones_json');
+      if (res.status !== 200) {
+        alert('Failed to load zones');
+        return;
+      }
+      const data = await res.json();
+      document.getElementById('zonesInput').value = JSON.stringify(data.zones, null, 2);
+    }
+
+    async function saveZones() {
+      let zones;
+      try {
+        zones = JSON.parse(document.getElementById('zonesInput').value);
+      } catch {
+        alert('Invalid JSON');
+        return;
+      }
+      const res = await fetch('/update_zones', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({zones})
+      });
+      const response = await res.json();
+      if (res.status === 200) {
+        alert('Zones updated successfully');
+      } else {
+        alert('Error: ' + (response.error || 'Unknown error'));
+      }
+    }
+
+    loadZones();
+  </script>
+</body>
+</html>

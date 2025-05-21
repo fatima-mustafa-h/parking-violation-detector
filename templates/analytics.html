@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Analytics</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <nav>
+    <a href="{{ url_for('dashboard') }}">Dashboard</a> |
+    <a href="{{ url_for('violations') }}">Violations</a> |
+    <a href="{{ url_for('analytics') }}">Analytics</a> |
+    <a href="{{ url_for('live_feed') }}">Live Feed</a> |
+    <a href="{{ url_for('auth.logout') }}">Logout</a>
+  </nav>
+  <h1>Violation Analytics</h1>
+  <p>Total Violations: {{ stats.total_violations }}</p>
+  <h2>Top Zones</h2>
+  <ul>
+    {% for zone in stats.top_zones %}
+    <li>{{ zone.name }} - {{ zone.count }}</li>
+    {% endfor %}
+  </ul>
+  <h2>Peak Hours</h2>
+  <ul>
+    {% for hour in stats.peak_hours %}
+    <li>{{ hour }}:00</li>
+    {% endfor %}
+  </ul>
+</body>
+</html>

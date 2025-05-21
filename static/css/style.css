@@ -1,0 +1,66 @@
+body {
+  font-family: Arial, sans-serif;
+  margin: 20px;
+  background: #f4f4f4;
+  color: #333;
+}
+
+.container {
+  max-width: 400px;
+  margin: auto;
+  background: white;
+  padding: 20px;
+  border-radius: 4px;
+}
+
+nav {
+  margin-bottom: 15px;
+}
+
+nav a {
+  margin-right: 10px;
+  text-decoration: none;
+  color: #0066cc;
+}
+
+h1, h2 {
+  margin-top: 0;
+}
+
+input[type=email], input[type=password], button {
+  width: 100%;
+  margin: 8px 0;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+button {
+  background-color: #0066cc;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #004999;
+}
+
+.error {
+  color: red;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+}
+
+th, td {
+  border: 1px solid #ccc;
+  padding: 8px;
+  text-align: left;
+}
+
+th {
+  background-color: #eee;
+}

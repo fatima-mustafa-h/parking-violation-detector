@@ -1,1 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.log
+
+# Virtual environment
+venv/
+ENV/
+env/
+
+# VSCode
 .vscode/
+
+# MacOS
+.DS_Store
+
+# Model files
+*.pt
+
+# Video files
+*.mp4
+*.avi
+*.mov
+
+# Credentials
+*.json
+firebase_config.json
+
+# System
+*.swp
+
+# Other
+violation_log.json
+runs/
+
